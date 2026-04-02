@@ -137,9 +137,7 @@ hs-institution-identity/
 │       └── resolve.test.ts          ← date-resolution tests with mock DB
 │
 ├── diagrams/
-│   ├── er-diagram.png               ← entity relationship overview
-│   ├── lifecycle-timeline.png       ← bitemporal lifecycle example
-│   └── resolution-flow.png          ← transcript → institution resolution flow
+│   └── README.md                    ← Three diagrams(data model, lifecycle and resolution)
 │
 └── docs/
     ├── matching-approach.md         ← normalization rules, confidence weights, thresholds
