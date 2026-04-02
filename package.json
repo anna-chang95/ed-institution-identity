@@ -1,0 +1,21 @@
+{
+  "name": "hs-institution-identity",
+  "version": "1.0.0",
+  "description": "High school institution identity and change over time",
+  "scripts": {
+    "test": "jest",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "prisma": "^5.0.0",
+    "mongodb": "^6.0.0"
+  }
+}

@@ -1,0 +1,200 @@
+// Prisma Schema
+// Database: PostgreSQL (canonical institution store)
+//
+// This schema covers the operational database only.
+// Raw partner payloads are stored in MongoDB before normalization —
+// see src/lib/mongo.ts and src/ingestion/ingest-partner.ts for that layer.
+//
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------------
+
+enum InstitutionType {
+  HIGH_SCHOOL
+  COMMUNITY_COLLEGE
+  CHARTER
+  ALTERNATIVE
+}
+
+enum InstitutionStatus {
+  ACTIVE
+  CLOSED
+  MERGED_OUT
+}
+
+enum LifecycleEventType {
+  RENAME
+  MERGE_IN
+  MERGE_OUT
+  SPLIT
+  CLOSURE
+  REOPEN
+}
+
+enum ResolutionMethod {
+  EXACT
+  PHONETIC
+  FUZZY
+  EMBEDDING
+  MANUAL
+}
+
+// ---------------------------------------------------------------------------
+// INSTITUTION
+// The canonical identity record. One row per school, ever.
+// The institution_id never changes — not for renames, merges, or closures.
+// All mutable attributes live in InstitutionVersion.
+// ---------------------------------------------------------------------------
+
+model Institution {
+  id              String            @id @default(uuid()) @map("institution_id")
+  institutionType InstitutionType   @map("institution_type")
+  ncesId          String?           @unique @map("nces_id")   // National Center for Ed Stats ID
+  status          InstitutionStatus @default(ACTIVE)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  createdBy       String            @map("created_by")        // source system or user
+
+  // Relations
+  versions        InstitutionVersion[]
+  lifecycleEvents InstitutionLifecycleEvent[] @relation("PrimaryInstitution")
+  relatedEvents   InstitutionLifecycleEvent[] @relation("RelatedInstitution")
+  crosswalks      PartnerCrosswalk[]
+  schoolReports   SchoolYearReport[]
+
+  @@map("institution")
+}
+
+// ---------------------------------------------------------------------------
+// INSTITUTION VERSION (bitemporal)
+// Every name, address, or attribute change creates a new row.
+// Old rows are never deleted — valid_to is set to close them.
+//
+// To query "what was this school on date X":
+//   WHERE institution_id = $id
+//     AND valid_from <= $date
+//     AND (valid_to IS NULL OR valid_to > $date)
+// ---------------------------------------------------------------------------
+
+model InstitutionVersion {
+  id              String      @id @default(uuid()) @map("version_id")
+  institutionId   String      @map("institution_id")
+  validFrom       DateTime    @map("valid_from")              // inclusive: when this version became official
+  validTo         DateTime?   @map("valid_to")                // exclusive: null = currently valid
+  name            String                                      // official name at this time
+  nameNormalized  String      @map("name_normalized")         // lowercased, abbreviations expanded, for matching
+  addressLine1    String?     @map("address_line1")
+  city            String?
+  state           String?     @db.Char(2)                     // ISO state code
+  zip             String?     @db.VarChar(10)
+  countyFips      String?     @map("county_fips") @db.Char(5) // for geographic disambiguation
+  source          String?                                     // NCES, partner, manual, etc.
+
+  // Relations
+  institution     Institution @relation(fields: [institutionId], references: [id])
+
+  // Indexes for common query patterns
+  @@index([institutionId, validFrom, validTo])
+  @@index([state, nameNormalized])
+  @@index([nameNormalized])
+  @@map("institution_version")
+}
+
+// ---------------------------------------------------------------------------
+// INSTITUTION LIFECYCLE EVENT
+// Append-only log of structural changes.
+// Never deleted. Full audit trail of renames, merges, closures.
+// ---------------------------------------------------------------------------
+
+model InstitutionLifecycleEvent {
+  id                    String             @id @default(uuid()) @map("event_id")
+  institutionId         String             @map("institution_id")
+  eventType             LifecycleEventType @map("event_type")
+  eventDate             DateTime           @map("event_date")          // when it happened in the real world
+  relatedInstitutionId  String?            @map("related_institution_id") // e.g. surviving entity in a merge
+  notes                 String?                                         // free-form detail for reviewers
+  sourceDocument        String?            @map("source_document")     // URL or reference to evidence
+  createdAt             DateTime           @default(now()) @map("created_at")
+  createdBy             String             @map("created_by")
+
+  // Relations
+  institution           Institution        @relation("PrimaryInstitution", fields: [institutionId], references: [id])
+  relatedInstitution    Institution?       @relation("RelatedInstitution", fields: [relatedInstitutionId], references: [id])
+
+  @@index([institutionId, eventDate])
+  @@map("institution_lifecycle_event")
+}
+
+// ---------------------------------------------------------------------------
+// PARTNER CROSSWALK
+// Maps a partner's identifier or raw name to our canonical institution_id.
+// One row per unique (partner_id, partner_key) pair.
+//
+// Acts as a cache with confidence — partner noise never contaminates
+// canonical institution data. Downstream consumers can filter by
+// confidence threshold based on their own risk tolerance.
+// ---------------------------------------------------------------------------
+
+model PartnerCrosswalk {
+  id               String           @id @default(uuid()) @map("crosswalk_id")
+  partnerId        String           @map("partner_id")       // e.g. "NAVIANCE", "COMMON_APP"
+  partnerKey       String           @map("partner_key")      // raw value as partner sent it
+  institutionId    String           @map("institution_id")
+  confidence       Decimal          @db.Decimal(4, 3)        // 0.000 – 1.000
+  resolutionMethod ResolutionMethod @map("resolution_method")
+  isVerified       Boolean          @default(false) @map("is_verified")
+  reviewedBy       String?          @map("reviewed_by")      // user ID if manually reviewed
+  reviewedAt       DateTime?        @map("reviewed_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  institution      Institution      @relation(fields: [institutionId], references: [id])
+
+  // A partner key should only resolve to one institution
+  @@unique([partnerId, partnerKey])
+  @@index([institutionId])
+  @@index([partnerId, partnerKey, isVerified])
+  @@map("partner_crosswalk")
+}
+
+// ---------------------------------------------------------------------------
+// SCHOOL YEAR REPORT
+// Annual statistics per institution — AP offerings, enrollment, demographics.
+// Used to contextualize a student's transcript (e.g., how many AP courses
+// did this school offer in the year this transcript was issued?).
+//
+// Linked to institution_id, not institution_version_id, because
+// school-year data belongs to the institution's identity, not a
+// specific name period.
+// ---------------------------------------------------------------------------
+
+model SchoolYearReport {
+  id                   String      @id @default(uuid()) @map("report_id")
+  institutionId        String      @map("institution_id")
+  schoolYear           Int         @map("school_year")              // e.g. 2009 = 2008–2009 academic year
+  enrollment           Int?
+  apCourseCount        Int?        @map("ap_course_count")
+  freeReducedLunchPct  Decimal?    @map("free_reduced_lunch_pct") @db.Decimal(5, 2)
+  graduationRate       Decimal?    @map("graduation_rate") @db.Decimal(5, 2)
+  dataSource           String?     @map("data_source")             // NCES, state data, partner, etc.
+  createdAt            DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  institution          Institution @relation(fields: [institutionId], references: [id])
+
+  // One report per institution per year
+  @@unique([institutionId, schoolYear])
+  @@index([institutionId, schoolYear])
+  @@map("school_year_report")
+}
