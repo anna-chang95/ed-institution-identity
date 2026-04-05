@@ -152,8 +152,8 @@ hs-institution-identity/
 No database setup required. All tests run against mock data.
 
 ```bash
-git clone https://github.com/<your-username>/hs-institution-identity
-cd hs-institution-identity
+git clone https://github.com/<your-username>/ed-institution-identity
+cd ed-institution-identity
 npm install
 npm test
 ```
