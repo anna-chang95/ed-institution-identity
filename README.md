@@ -205,6 +205,6 @@ See [`DECISIONS.md`](DECISIONS.md) for the full tradeoff analysis. Summary:
 
 | Diagram | Description |
 |---|---|
-| [`er-diagram.png`](diagrams/er-diagram.png) | Entity relationships across all six tables |
-| [`lifecycle-timeline.png`](diagrams/lifecycle-timeline.png) | How a school moves through rename → merge → closure |
-| [`resolution-flow.png`](diagrams/resolution-flow.png) | How a raw transcript resolves to a canonical institution record |
+| `Entity relationship overview` | Entity relationships across all six tables |
+| `Bitemporal lifecycle` | How a school moves through rename → merge → closure |
+| `Transcript resolution flow` | How a raw transcript resolves to a canonical institution record |
