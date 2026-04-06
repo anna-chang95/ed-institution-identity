@@ -104,7 +104,7 @@ See [`docs/matching-approach.md`](docs/matching-approach.md) for full normalizat
 ## Repository Structure
 
 ```
-hs-institution-identity/
+ed-institution-identity/
 │
 ├── README.md                        ← you are here
 ├── DECISIONS.md                     ← key design tradeoffs and alternatives considered
