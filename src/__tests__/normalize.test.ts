@@ -55,6 +55,15 @@ describe('normalizeName', () => {
     it('preserves hyphens in hyphenated names', () => {
       expect(normalizeName('Winston-Salem High School')).toBe('winston-salem high school');
     });
+
+    it('preserves middle initials without corrupting them to directions', () => {
+      expect(normalizeName('Thomas S. Wootton High School'))
+        .toBe('thomas s wootton high school');
+    });
+
+    it('expands directional abbreviations at the start of a name', () => {
+      expect(normalizeName('N. Detroit High School')).toBe('north detroit high school');
+    });
   });
 
   describe('OCR corrections', () => {

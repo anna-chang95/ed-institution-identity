@@ -34,11 +34,12 @@ const ABBREVIATION_MAP: Array<[RegExp, string]> = [
   [/\bmt\.?\b/gi,           'mount'],
   [/\bft\.?\b/gi,           'fort'],
 
-  // Directional abbreviations
-  [/\bn\.?\b/gi,            'north'],
-  [/\bs\.?\b/gi,            'south'],
-  [/\be\.?\b/gi,            'east'],
-  [/\bw\.?\b/gi,            'west'],
+  // Directional abbreviations — only at start of name to avoid
+  // corrupting middle initials like "Thomas S. Wootton"
+  [/^n\.(?=\s)/gi,           'north'],
+  [/^s\.(?=\s)/gi,           'south'],
+  [/^e\.(?=\s)/gi,           'east'],
+  [/^w\.(?=\s)/gi,           'west'],
 
   // Common word abbreviations
   [/\bjr\.?\b/gi,           'junior'],

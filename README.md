@@ -166,7 +166,7 @@ PASS src/__tests__/match-pipeline.test.ts
 PASS src/__tests__/resolve.test.ts
 
 Test Suites: 3 passed, 3 total
-Tests:       18 passed, 18 total
+Tests:       49 passed, 49 total
 ```
 
 ---
