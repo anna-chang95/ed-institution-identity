@@ -108,6 +108,13 @@ model InstitutionVersion {
   @@index([state, nameNormalized])
   @@index([nameNormalized])
   @@map("institution_version")
+
+  // NOTE: Prisma cannot express the GiST exclusion constraint that prevents
+  // overlapping date ranges for the same institution. This constraint is
+  // critical for bitemporal integrity — without it, two versions could
+  // claim to be valid on the same date. Apply migrations/003_gist_exclusion_constraint.sql
+  // after running prisma migrate dev. See also migrations/001_initial.sql
+  // where the constraint is included in the CREATE TABLE definition.
 }
 
 // ---------------------------------------------------------------------------

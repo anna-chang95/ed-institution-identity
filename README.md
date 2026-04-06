@@ -113,7 +113,9 @@ ed-institution-identity/
 │   └── schema.prisma                ← PostgreSQL schema (all canonical tables)
 │
 ├── migrations/
-│   └── 001_initial.sql              ← raw SQL equivalent of the Prisma schema
+│   ├── 001_initial.sql              ← raw SQL equivalent of the Prisma schema
+│   ├── 002_seed_example.sql         ← example data for the Lincoln lifecycle scenario
+│   └── 003_gist_exclusion_constraint.sql ← GiST constraint for Prisma workflow
 │
 ├── src/
 │   ├── lib/
@@ -152,7 +154,7 @@ ed-institution-identity/
 No database setup required. All tests run against mock data.
 
 ```bash
-git clone https://github.com/<your-username>/ed-institution-identity
+git clone https://github.com/anna-chang95/ed-institution-identity
 cd ed-institution-identity
 npm install
 npm test
@@ -202,6 +204,8 @@ See [`DECISIONS.md`](DECISIONS.md) for the full tradeoff analysis. Summary:
 ---
 
 ## Diagrams
+
+See [`README.md`](diagrams/README.md). Summary:
 
 | Diagram | Description |
 |---|---|
